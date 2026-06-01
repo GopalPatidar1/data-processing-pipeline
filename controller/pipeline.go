@@ -5,52 +5,96 @@ import (
 	"backend/repository"
 	"backend/utils"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 )
 
+type Record struct {
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Phone  string `json:"phone"`
+	Status string `json:"status,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
 func CreatePipeline(w http.ResponseWriter, r *http.Request) {
+	var records []Record
 
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	type RequestBody struct {
-		FileName   string `json:"file_name"`
-		FileType   string `json:"file_type"`
-		SourcePath string `json:"source_path"`
-	}
-
-	var body RequestBody
-
-	err := json.NewDecoder(r.Body).Decode(&body)
-	if err != nil {
+	// Decode request body
+	if err := json.NewDecoder(r.Body).Decode(&records); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println("Received pipeline job for file:", body.FileName)
-
-	job := models.PipelineJob{
+	addJob := models.PipelineJob{
 		ID:         utils.GenerateID(),
-		FileName:   body.FileName,
-		FileType:   body.FileType,
-		SourcePath: body.SourcePath,
+		FileName:   "data.csv",
+		FileType:   "csv",
+		SourcePath: "",
 		Status:     "PENDING",
 		CreatedAt:  time.Now(),
 	}
 
-	err = repository.CreatePipelineJob(job)
-
-	if err != nil {
+	if err := repository.CreatePipelineJob(addJob); err != nil {
 		http.Error(w, "Failed to create pipeline job", http.StatusInternalServerError)
 		return
 	}
 
+	repository.UpdatePipelineStatus(addJob.ID, "IN_PROGRESS")
+
+	// Process each record
+	for i := range records {
+		record := &records[i]
+
+		// Validate phone
+		if !utils.IsValidPhone(record.Phone) {
+			record.Status = "FAILED"
+			record.Error = "phone number must contain exactly 10 digits"
+			continue
+		}
+
+		// Validate email
+		if !utils.IsValidEmail(record.Email) {
+			record.Status = "FAILED"
+			record.Error = "invalid email address"
+			continue
+		}
+
+		job := models.PipelineRecord{
+			ID:            utils.GenerateID(),
+			PipelineJobId: addJob.ID,
+			Name:          record.Name,
+			Phone:         record.Phone,
+			Email:         record.Email,
+			Status:        "PENDING",
+			CreatedAt:     time.Now(),
+		}
+
+		if err := repository.CreatePipelineRecord(job); err != nil {
+			record.Status = "FAILED"
+			record.Error = "failed to create job"
+			continue
+		}
+
+		record.Status = "SUCCESS"
+		record.Error = ""
+	}
+
+	repository.UpdatePipelineStatus(addJob.ID, "COMPLETED")
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(job)
+	json.NewEncoder(w).Encode(records)
+}
+
+func GetPipelines(w http.ResponseWriter, r *http.Request) {
+	jobs, err := repository.GetPipelineJobs()
+	if err != nil {
+		http.Error(w, "Failed to retrieve pipeline jobs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jobs)
 }
