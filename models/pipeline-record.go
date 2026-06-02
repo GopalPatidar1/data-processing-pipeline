@@ -8,7 +8,6 @@ type PipelineRecord struct {
 	Email         string    `json:"email"`
 	PipelineJobId string    `json:"pipeline_job_id"`
 	Status        string    `json:"status"`
-	Error         string    `json:"error,omitempty"`
 	Phone         string    `json:"phone"`
 	ErrorMessage  string    `json:"error_message,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`

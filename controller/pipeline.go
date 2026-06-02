@@ -46,18 +46,17 @@ func CreatePipeline(w http.ResponseWriter, r *http.Request) {
 	for i := range records {
 		record := &records[i]
 
+		record.Status = "COMPLETED"
 		// Validate phone
 		if !utils.IsValidPhone(record.Phone) {
 			record.Status = "FAILED"
 			record.Error = "phone number must contain exactly 10 digits"
-			continue
 		}
 
 		// Validate email
 		if !utils.IsValidEmail(record.Email) {
 			record.Status = "FAILED"
 			record.Error = "invalid email address"
-			continue
 		}
 
 		job := models.PipelineRecord{
@@ -66,18 +65,11 @@ func CreatePipeline(w http.ResponseWriter, r *http.Request) {
 			Name:          record.Name,
 			Phone:         record.Phone,
 			Email:         record.Email,
-			Status:        "PENDING",
+			Status:        record.Status,
 			CreatedAt:     time.Now(),
 		}
 
-		if err := repository.CreatePipelineRecord(job); err != nil {
-			record.Status = "FAILED"
-			record.Error = "failed to create job"
-			continue
-		}
-
-		record.Status = "SUCCESS"
-		record.Error = ""
+		go repository.CreatePipelineRecord(job)
 	}
 
 	repository.UpdatePipelineStatus(addJob.ID, "COMPLETED")
@@ -85,7 +77,7 @@ func CreatePipeline(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(records)
+	json.NewEncoder(w).Encode(map[string]interface{}{"id": addJob.ID})
 }
 
 func GetPipelines(w http.ResponseWriter, r *http.Request) {
@@ -97,4 +89,28 @@ func GetPipelines(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
+}
+
+func GetPipelineByID(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Path[len("/api/v1/pipelines/"):]
+	job, err := repository.GetPipelineJobByID(id)
+	if err != nil {
+		http.Error(w, "Pipeline job not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(job)
+}
+
+func GetAllPipelineReport(w http.ResponseWriter, r *http.Request) {
+	reports, err := repository.GetAllPipelineReport()
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reports)
 }

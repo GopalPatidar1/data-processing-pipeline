@@ -3,6 +3,7 @@ package routes
 import (
 	"backend/controller"
 	"net/http"
+	"strings"
 )
 
 func RegisterPipelineRoutes(mux *http.ServeMux) {
@@ -16,6 +17,32 @@ func RegisterPipelineRoutes(mux *http.ServeMux) {
 
 		case http.MethodGet:
 			controller.GetPipelines(w, r)
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Pipeline by ID & Pipeline Report
+	mux.HandleFunc("/api/v1/pipelines/", func(w http.ResponseWriter, r *http.Request) {
+
+		switch {
+
+		case r.Method == http.MethodGet &&
+			strings.HasSuffix(r.URL.Path, "/all"):
+
+			controller.GetAllPipelineReport(w, r)
+
+		// GET /api/v1/pipelines/{id}/report
+		case r.Method == http.MethodGet &&
+			strings.HasSuffix(r.URL.Path, "/report"):
+
+			// controller.GetPipelineReport(w, r)
+
+		// GET /api/v1/pipelines/{id}
+		case r.Method == http.MethodGet:
+
+			controller.GetPipelineByID(w, r)
 
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

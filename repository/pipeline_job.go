@@ -4,7 +4,23 @@ import (
 	"backend/config"
 	"backend/models"
 	"context"
+	"time"
 )
+
+type RecordSummary struct {
+	Completed  int `json:"completed"`
+	Failed     int `json:"failed"`
+	InProgress int `json:"inProgress"`
+}
+type PipelineJobResponse struct {
+	ID         string        `json:"id"`
+	FileName   string        `json:"file_name"`
+	FileType   string        `json:"file_type"`
+	SourcePath string        `json:"source_path"`
+	Status     string        `json:"status"`
+	CreatedAt  time.Time     `json:"created_at"`
+	Records    RecordSummary `json:"records"`
+}
 
 func CreatePipelineJob(job models.PipelineJob) error {
 	query := `
@@ -89,4 +105,114 @@ func UpdatePipelineStatus(id string, status string) error {
 	)
 
 	return err
+}
+
+func GetPipelineJobByID(id string) (*PipelineJobResponse, error) {
+
+	query := `
+		SELECT
+			j.id,
+			j.file_name,
+			j.file_type,
+			j.source_path,
+			j.status,
+			j.created_at,
+			COUNT(*) FILTER (WHERE r.status = 'COMPLETED') AS completed,
+			COUNT(*) FILTER (WHERE r.status = 'FAILED') AS failed,
+			COUNT(*) FILTER (WHERE r.status = 'IN_PROGRESS') AS in_progress
+		FROM pipeline_jobs j
+		LEFT JOIN pipeline_records r
+			ON r.pipeline_job_id = j.id
+		WHERE j.id = $1
+		GROUP BY
+			j.id,
+			j.file_name,
+			j.file_type,
+			j.source_path,
+			j.status,
+			j.created_at
+	`
+
+	var job PipelineJobResponse
+
+	err := config.DB.QueryRow(context.Background(), query, id).Scan(
+		&job.ID,
+		&job.FileName,
+		&job.FileType,
+		&job.SourcePath,
+		&job.Status,
+		&job.CreatedAt,
+		&job.Records.Completed,
+		&job.Records.Failed,
+		&job.Records.InProgress,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &job, nil
+}
+
+func GetAllPipelineReport() ([]models.PipelineJob, error) {
+
+	query := `
+		   SELECT
+           j.id,
+           j.file_name,
+           j.file_type,
+           j.source_path,
+           j.status,
+           j.created_at,
+           COALESCE(
+               JSON_AGG(
+                   JSON_BUILD_OBJECT(
+                       'id', r.id,
+                       'name', r.name,
+                       'email', r.email,
+                       'phone', r.phone,
+                       'status', r.status
+                   )
+               ) FILTER (WHERE r.id IS NOT NULL),
+               '[]'::json
+           ) AS records
+       FROM pipeline_jobs j
+       LEFT JOIN pipeline_records r
+           ON r.pipeline_job_id = j.id
+       GROUP BY
+           j.id;
+	`
+
+	rows, err := config.DB.Query(context.Background(), query)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var reports []models.PipelineJob
+
+	for rows.Next() {
+
+		var report models.PipelineJob
+
+		err := rows.Scan(
+			&report.ID,
+			&report.FileName,
+			&report.FileType,
+			&report.SourcePath,
+			&report.Status,
+			&report.CreatedAt,
+			&report.Records,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		reports = append(reports, report)
+	}
+
+	return reports, nil
 }

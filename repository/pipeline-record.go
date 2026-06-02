@@ -4,9 +4,12 @@ import (
 	"backend/config"
 	"backend/models"
 	"context"
+	"fmt"
+	"time"
 )
 
 func CreatePipelineRecord(job models.PipelineRecord) error {
+	time.Sleep(10 * time.Second) // Simulate processing time
 	query := `
 		INSERT INTO pipeline_records
 		(id, name, email, phone, status, created_at, error_message, pipeline_job_id)
@@ -26,6 +29,8 @@ func CreatePipelineRecord(job models.PipelineRecord) error {
 		job.ErrorMessage,
 		job.PipelineJobId,
 	)
+
+	fmt.Println("Inserted record with ID:", job.ID, "Status:", job.Status, "Error:", job.ErrorMessage, err)
 
 	return err
 }

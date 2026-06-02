@@ -2,16 +2,15 @@ package config
 
 import (
 	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
-
-	"github.com/jackc/pgx/v5"
 )
 
-var DB *pgx.Conn
+var DB *pgxpool.Pool
 
-func ConnectDB() *pgx.Conn {
+func ConnectDB() *pgxpool.Pool {
 
-	conn, err := pgx.Connect(
+	pool, err := pgxpool.New(
 		context.Background(),
 		"postgres://postgres:mindfire@localhost:5432/pipeline_db",
 	)
@@ -20,8 +19,9 @@ func ConnectDB() *pgx.Conn {
 		log.Fatal("Unable to connect to database:", err)
 	}
 
-	DB = conn
+	DB = pool
 
 	log.Println("Database connected successfully")
-	return conn
+
+	return pool
 }

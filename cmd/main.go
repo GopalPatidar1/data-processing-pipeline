@@ -1,12 +1,11 @@
 package main
 
 import (
-	"context"
+	"backend/config"
+	"backend/routes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"backend/routes"
-	"backend/config"
 )
 
 type User struct {
@@ -30,15 +29,8 @@ func userHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Connect DB
-	conn := config.ConnectDB()
-
-	defer conn.Close(context.Background())
-	// User Routes
-	routes.UserRoutes()
-
-	// File Routes
-	routes.FileRoutes()
+	pool := config.ConnectDB()
+	defer pool.Close()
 
 	// Pipeline Routes
 	routes.RegisterPipelineRoutes(http.DefaultServeMux)
