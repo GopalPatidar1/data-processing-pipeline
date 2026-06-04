@@ -216,3 +216,53 @@ func GetAllPipelineReport() ([]models.PipelineJob, error) {
 
 	return reports, nil
 }
+func DeletePipelineJobByID(id string) error {
+
+	tx, err := config.DB.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+
+	// Rollback if anything fails
+	defer tx.Rollback(context.Background())
+
+	// Delete pipeline records
+	recordsQuery := `
+		DELETE FROM pipeline_records
+		WHERE pipeline_job_id = $1
+	`
+
+	_, err = tx.Exec(
+		context.Background(),
+		recordsQuery,
+		id,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// Delete pipeline job
+	jobQuery := `
+		DELETE FROM pipeline_jobs
+		WHERE id = $1
+	`
+
+	_, err = tx.Exec(
+		context.Background(),
+		jobQuery,
+		id,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// Commit transaction
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

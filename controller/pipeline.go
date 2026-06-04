@@ -17,6 +17,39 @@ type Record struct {
 	Error  string `json:"error,omitempty"`
 }
 
+func ProcessPipeline(jobID string, records []Record) {
+	// Process each record
+	for i := range records {
+		record := &records[i]
+
+		record.Status = "COMPLETED"
+		// Validate phone
+		if !utils.IsValidPhone(record.Phone) {
+			record.Status = "FAILED"
+			record.Error = "phone number must contain exactly 10 digits"
+		}
+
+		// Validate email
+		if !utils.IsValidEmail(record.Email) {
+			record.Status = "FAILED"
+			record.Error = "invalid email address"
+		}
+
+		job := models.PipelineRecord{
+			ID:            utils.GenerateID(),
+			PipelineJobId: jobID,
+			Name:          record.Name,
+			Phone:         record.Phone,
+			Email:         record.Email,
+			Status:        record.Status,
+			CreatedAt:     time.Now(),
+		}
+
+		repository.CreatePipelineRecord(job)
+	}
+	repository.UpdatePipelineStatus(jobID, "COMPLETED")
+}
+
 func CreatePipeline(w http.ResponseWriter, r *http.Request) {
 	var records []Record
 
@@ -42,37 +75,7 @@ func CreatePipeline(w http.ResponseWriter, r *http.Request) {
 
 	repository.UpdatePipelineStatus(addJob.ID, "IN_PROGRESS")
 
-	// Process each record
-	for i := range records {
-		record := &records[i]
-
-		record.Status = "COMPLETED"
-		// Validate phone
-		if !utils.IsValidPhone(record.Phone) {
-			record.Status = "FAILED"
-			record.Error = "phone number must contain exactly 10 digits"
-		}
-
-		// Validate email
-		if !utils.IsValidEmail(record.Email) {
-			record.Status = "FAILED"
-			record.Error = "invalid email address"
-		}
-
-		job := models.PipelineRecord{
-			ID:            utils.GenerateID(),
-			PipelineJobId: addJob.ID,
-			Name:          record.Name,
-			Phone:         record.Phone,
-			Email:         record.Email,
-			Status:        record.Status,
-			CreatedAt:     time.Now(),
-		}
-
-		go repository.CreatePipelineRecord(job)
-	}
-
-	repository.UpdatePipelineStatus(addJob.ID, "COMPLETED")
+	go ProcessPipeline(addJob.ID, records)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -101,6 +104,17 @@ func GetPipelineByID(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(job)
+}
+
+func DeletePipelineById(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Path[len("/api/v1/pipelines/"):]
+	err := repository.DeletePipelineJobByID(id)
+	if err != nil {
+		http.Error(w, "Pipeline job not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func GetAllPipelineReport(w http.ResponseWriter, r *http.Request) {

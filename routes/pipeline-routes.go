@@ -41,8 +41,11 @@ func RegisterPipelineRoutes(mux *http.ServeMux) {
 
 		// GET /api/v1/pipelines/{id}
 		case r.Method == http.MethodGet:
-
 			controller.GetPipelineByID(w, r)
+
+		// DELETE /api/v1/pipelines/{id}
+		case r.Method == http.MethodDelete:
+			controller.DeletePipelineById(w, r)
 
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
