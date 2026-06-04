@@ -3,29 +3,38 @@ package main
 import (
 	"backend/config"
 	"backend/routes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
-type User struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Welcome to Go Server")
-}
+func ApiMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-func userHandler(w http.ResponseWriter, r *http.Request) {
-	user := User{
-		ID:   1,
-		Name: "Gopal",
-	}
+		origin := r.Header.Get("Origin")
 
-	w.Header().Set("Content-Type", "application/json")
+		if origin != "https://mywebsite.com" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 
-	json.NewEncoder(w).Encode(user)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func main() {
@@ -33,9 +42,16 @@ func main() {
 	defer pool.Close()
 
 	// Pipeline Routes
-	routes.RegisterPipelineRoutes(http.DefaultServeMux)
+	mux := http.NewServeMux()
+
+	routes.RegisterPipelineRoutes(mux)
 
 	fmt.Println("Server running on port 3007")
 
-	http.ListenAndServe(":3007", nil)
+	// apiMiddlewareMux := ApiMiddleware(mux) if want to add API middleware
+	// server := corsMiddleware(apiMiddlewareMux)
+
+	server := corsMiddleware(mux)
+
+	http.ListenAndServe(":3007", server)
 }
