@@ -20,6 +20,8 @@ func CreatePipeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	service.UpdatePipelineStatus(jobId, "IN_PROGRESS")
+
 	go service.ProcessPipeline(jobId, records)
 
 	w.Header().Set("Content-Type", "application/json")

@@ -171,7 +171,8 @@ func GetAllPipelineReport() ([]models.PipelineJob, error) {
                        'name', r.name,
                        'email', r.email,
                        'phone', r.phone,
-                       'status', r.status
+                       'status', r.status,
+					   'pipeline_job_id', r.pipeline_job_id
                    )
                ) FILTER (WHERE r.id IS NOT NULL),
                '[]'::json

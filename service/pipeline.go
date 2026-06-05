@@ -64,9 +64,11 @@ func CreatePipeline(w http.ResponseWriter, r *http.Request) (string, error) {
 		return "", err
 	}
 
-	repository.UpdatePipelineStatus(addJob.ID, "IN_PROGRESS")
-
 	return addJob.ID, nil
+}
+
+func UpdatePipelineStatus(jobID, status string) error {
+	return repository.UpdatePipelineStatus(jobID, status)
 }
 
 func GetPipelines() ([]models.PipelineJob, error) {
