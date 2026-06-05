@@ -33,12 +33,6 @@ func RegisterPipelineRoutes(mux *http.ServeMux) {
 
 			controller.GetAllPipelineReport(w, r)
 
-		// GET /api/v1/pipelines/{id}/report
-		case r.Method == http.MethodGet &&
-			strings.HasSuffix(r.URL.Path, "/report"):
-
-			// controller.GetPipelineReport(w, r)
-
 		// GET /api/v1/pipelines/{id}
 		case r.Method == http.MethodGet:
 			controller.GetPipelineByID(w, r)
