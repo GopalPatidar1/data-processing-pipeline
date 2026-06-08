@@ -37,6 +37,20 @@ func ApiMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func RecoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Println("Recovered:", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	pool := config.ConnectDB()
 	defer pool.Close()
@@ -51,7 +65,7 @@ func main() {
 	// apiMiddlewareMux := ApiMiddleware(mux) if want to add API middleware
 	// server := corsMiddleware(apiMiddlewareMux)
 
-	server := corsMiddleware(mux)
+	server := RecoveryMiddleware(corsMiddleware(mux))
 
 	http.ListenAndServe(":3007", server)
 }
